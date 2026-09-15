@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>CarParts Segmenter — Diagnostic Console</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<div class="console">
+
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-mark">CPS</div>
+      <div class="brand-text">
+        <div class="brand-title">CarParts Segmenter</div>
+        <div class="brand-sub">YOLO26-seg &middot; 23-class instance segmentation</div>
+      </div>
+    </div>
+
+    <div class="model-badge" id="model-badge">
+      <span class="dot"></span>
+      <span id="model-badge-text">Checking model&hellip;</span>
+    </div>
+
+    <section class="panel">
+      <h2>Input</h2>
+
+      <label class="dropzone" id="dropzone" for="file-input">
+        <input type="file" id="file-input" accept="image/jpeg,image/png" hidden />
+        <svg class="dropzone-icon" viewBox="0 0 48 48" fill="none">
+          <path d="M24 6V30M24 6L16 14M24 6L32 14" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M8 32V38C8 40.2091 9.79086 42 12 42H36C38.2091 42 40 40.2091 40 38V32" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <div class="dropzone-text">Drop an image or <span>browse</span></div>
+        <div class="dropzone-sub">JPG or PNG</div>
+      </label>
+
+      <div class="sample-row">
+        <span class="sample-label">Sample plates</span>
+        <div class="sample-strip" id="sample-strip">
+          <div class="sample-empty">No samples in data/test_images</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Detector settings</h2>
+
+      <div class="control">
+        <div class="control-head">
+          <label for="conf-slider">Confidence threshold</label>
+          <span class="control-value mono" id="conf-value">0.25</span>
+        </div>
+        <input type="range" id="conf-slider" min="0.05" max="0.95" step="0.05" value="0.25" />
+      </div>
+
+      <div class="control">
+        <div class="control-head">
+          <label for="iou-slider">Mask IoU (NMS)</label>
+          <span class="control-value mono" id="iou-value">0.50</span>
+        </div>
+        <input type="range" id="iou-slider" min="0.1" max="0.9" step="0.05" value="0.50" />
+      </div>
+
+      <div class="toggle-row">
+        <label class="toggle">
+          <input type="checkbox" id="show-labels" checked />
+          <span class="toggle-track"><span class="toggle-thumb"></span></span>
+          <span class="toggle-label">Class labels</span>
+        </label>
+        <label class="toggle">
+          <input type="checkbox" id="show-conf" checked />
+          <span class="toggle-track"><span class="toggle-thumb"></span></span>
+          <span class="toggle-label">Confidence scores</span>
+        </label>
+      </div>
+    </section>
+
+    <div class="sidebar-foot">Built on Ultralytics YOLO26-seg</div>
+  </aside>
+
+  <main class="main">
+
+    <header class="topbar">
+      <div>
+        <h1>Car Parts Instance Segmentation</h1>
+        <p>Upload a vehicle photo and get pixel-level masks for every part — bumpers, doors, lights, mirrors, glass, hood, trunk, and more.</p>
+      </div>
+    </header>
+
+    <div id="empty-state" class="empty-state">
+      <svg viewBox="0 0 96 64" fill="none" class="empty-illustration">
+        <rect x="10" y="30" width="76" height="20" rx="4" stroke="currentColor" stroke-width="2"/>
+        <path d="M18 30L26 14H70L78 30" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+        <circle cx="26" cy="50" r="6" stroke="currentColor" stroke-width="2"/>
+        <circle cx="70" cy="50" r="6" stroke="currentColor" stroke-width="2"/>
+        <line x1="30" y1="24" x2="66" y2="24" stroke="currentColor" stroke-width="2"/>
+      </svg>
+      <div class="empty-title">No scan running</div>
+      <div class="empty-sub">Load an image from the left panel to begin segmentation.</div>
+    </div>
+
+    <div id="loading-state" class="loading-state hidden">
+      <div class="spinner"></div>
+      <div class="loading-text">Running segmentation&hellip;</div>
+    </div>
+
+    <div id="error-state" class="error-state hidden">
+      <div class="error-title">Scan failed</div>
+      <div class="error-sub" id="error-message"></div>
+    </div>
+
+    <div id="results" class="results hidden">
+
+      <section class="viewer-card">
+        <div class="viewer-tabs">
+          <button class="viewer-tab active" data-mode="compare">Compare</button>
+          <button class="viewer-tab" data-mode="original">Original</button>
+          <button class="viewer-tab" data-mode="segmented">Segmented</button>
+        </div>
+
+        <div class="viewer" id="viewer">
+          <div class="viewer-frame">
+            <img id="img-original" class="viewer-img" alt="Original" />
+            <div class="viewer-clip" id="viewer-clip">
+              <img id="img-segmented" class="viewer-img" alt="Segmented" />
+            </div>
+            <div class="label-overlay" id="label-overlay"></div>
+            <div class="compare-handle" id="compare-handle"></div>
+            <input type="range" id="compare-slider" class="compare-range" min="0" max="100" value="100" />
+          </div>
+          <div class="viewer-caption">
+            <span>Original</span>
+            <span>Segmented</span>
+          </div>
+        </div>
+
+        <button class="download-btn" id="download-btn">
+          <svg viewBox="0 0 20 20" fill="none" width="16" height="16"><path d="M10 3V13M10 13L6 9M10 13L14 9" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 15.5V16.5C4 17.0523 4.44772 17.5 5 17.5H15C15.5523 17.5 16 17.0523 16 16.5V15.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+          Download segmented image
+        </button>
+      </section>
+
+      <section class="readout-row">
+        <div class="readout">
+          <div class="readout-value mono" id="stat-parts">0</div>
+          <div class="readout-label">Parts detected</div>
+        </div>
+        <div class="readout">
+          <div class="readout-value mono" id="stat-classes">0</div>
+          <div class="readout-label">Unique classes</div>
+        </div>
+        <div class="readout">
+          <div class="readout-value mono" id="stat-fps">0.0</div>
+          <div class="readout-label">Inference FPS</div>
+        </div>
+        <div class="readout">
+          <div class="readout-value mono" id="stat-ms">0</div>
+          <div class="readout-label">Latency (ms)</div>
+        </div>
+      </section>
+
+      <section class="panel spec-panel">
+        <h2>Detected parts</h2>
+        <div id="spec-empty" class="spec-empty hidden">No parts detected above the current confidence threshold. Lower it in the sidebar and try again.</div>
+        <table class="spec-table" id="spec-table">
+          <thead>
+            <tr><th>Part</th><th>Confidence</th><th></th></tr>
+          </thead>
+          <tbody id="spec-body"></tbody>
+        </table>
+      </section>
+    </div>
+  </main>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
